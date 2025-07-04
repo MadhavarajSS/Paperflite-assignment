@@ -1,9 +1,12 @@
 package com.assesment.spring.data.mongodb.controller;
 
-import com.assesment.spring.data.mongodb.model.CustomerEntity;
+import com.assesment.spring.data.mongodb.exception.CustomerNotFoundException;
+import com.assesment.spring.data.mongodb.exception.InvalidAccountException;
 import com.assesment.spring.data.mongodb.model.AccountEntity;
+import com.assesment.spring.data.mongodb.model.CustomerEntity;
 import com.assesment.spring.data.mongodb.repository.AccountRepository;
 import com.assesment.spring.data.mongodb.repository.CustomerRepository;
+import com.assesment.spring.data.mongodb.service.MigrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -26,17 +30,20 @@ public class CustomerController {
     @Autowired
     private AccountRepository accountRepository;
 
+    @Autowired
+    private MigrationService migrationService;
+
     @PostMapping
     public CustomerEntity createCustomer(@RequestBody CustomerEntity customer) {
         logger.info("Creating new customer: {} {}", customer.getFirstName(), customer.getLastName());
 
-        if (customer.getAccountId() != null) {
+        if (customer.getAccountId() != null && customer.getAccountId().getId() != null) {
             Optional<AccountEntity> account = accountRepository.findById(customer.getAccountId().getId());
             if (account.isPresent()) {
                 customer.setAccountId(account.get());
             } else {
-                logger.warn("Provided account ID does not exist. Setting account to null.");
-                customer.setAccountId(null);
+                logger.error("Provided account ID does not exist");
+                throw new InvalidAccountException("Account not found for provided ID: " + customer.getAccountId().getId());
             }
         }
 
@@ -56,27 +63,27 @@ public class CustomerController {
             existingCustomer.setFirstName(customerUpdate.getFirstName());
             existingCustomer.setLastName(customerUpdate.getLastName());
 
-            if (customerUpdate.getAccountId() != null) {
+            if (customerUpdate.getAccountId() != null && customerUpdate.getAccountId().getId() != null) {
                 Optional<AccountEntity> account = accountRepository.findById(customerUpdate.getAccountId().getId());
                 if (account.isPresent()) {
                     existingCustomer.setAccountId(account.get());
                 } else {
-                    logger.warn("Provided account ID for update does not exist. Keeping old account.");
+                    logger.error("Provided account ID for update does not exist");
+                    throw new InvalidAccountException("Account not found for provided ID: " + customerUpdate.getAccountId().getId());
                 }
             }
 
             CustomerEntity updatedCustomer = customerRepository.save(existingCustomer);
             logger.info("Customer updated successfully for ID: {}", id);
-
             return updatedCustomer;
         } else {
             logger.error("Customer not found with ID: {}", id);
-            throw new RuntimeException("Customer not found");
+            throw new CustomerNotFoundException("Customer not found with ID: " + id);
         }
     }
 
     @GetMapping("/account/{accountId}")
-    public Page<CustomerEntity> getCustomersByAccountId(
+    public List<CustomerEntity> getCustomersByAccountId(
             @PathVariable String accountId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int limit) {
@@ -86,12 +93,19 @@ public class CustomerController {
         Optional<AccountEntity> account = accountRepository.findById(accountId);
         if (account.isPresent()) {
             Pageable pageable = PageRequest.of(page, limit);
-            Page<CustomerEntity> customersPage = customerRepository.findByAccountId(account.get(), pageable);
+            Page<CustomerEntity> customersPage = customerRepository.findByAccountId(accountId, pageable);
             logger.info("Found {} customers for account ID: {}", customersPage.getTotalElements(), accountId);
-            return customersPage;
+            return customersPage.getContent(); // ✅ Return only list
         } else {
             logger.error("Account not found with ID: {}", accountId);
-            throw new RuntimeException("Account not found");
+            throw new InvalidAccountException("Account not found with ID: " + accountId);
         }
+    }
+
+
+    @DeleteMapping("/delete-no-account")
+    public String deleteCustomersWithoutAccount() {
+        migrationService.deleteCustomersWithNoAccount();
+        return "Cleanup process completed: Customers without accounts have been deleted.";
     }
 }

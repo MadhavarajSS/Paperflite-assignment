@@ -1,4 +1,4 @@
-package com.assesment.spring.data.mongodb;
+package com.assesment.spring.data.mongodb.service;
 
 import com.assesment.spring.data.mongodb.model.CustomerEntity;
 import com.assesment.spring.data.mongodb.repository.CustomerRepository;
@@ -25,7 +25,7 @@ public class MigrationService {
 
         do {
             customerPage = customerRepository.findAll(PageRequest.of(page, size));
-
+            
             for (CustomerEntity customer : customerPage.getContent()) {
                 if (customer.getAccountId() == null) {
                     logger.info("Deleting customer with ID: {}", customer.getId());

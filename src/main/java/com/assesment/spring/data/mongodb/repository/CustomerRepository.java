@@ -7,5 +7,5 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface CustomerRepository extends MongoRepository<CustomerEntity, String> {
-    Page<CustomerEntity> findByAccountId(AccountEntity accountId, Pageable pageable);
+	Page<CustomerEntity> findByAccountId(String accountId, Pageable pageable);
 }

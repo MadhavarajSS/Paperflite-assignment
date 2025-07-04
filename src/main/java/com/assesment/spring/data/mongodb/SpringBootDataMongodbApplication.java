@@ -1,5 +1,6 @@
 package com.assesment.spring.data.mongodb;
 
+import com.assesment.spring.data.mongodb.service.MigrationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
