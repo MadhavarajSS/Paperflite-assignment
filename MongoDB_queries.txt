@@ -1,0 +1,63 @@
+1) Query to fetch customers from paid accounts using aggregation pipeline
+	[
+  // Stage 1: Add accountObjectId field
+  {
+    $addFields: {
+      accountObjectId: "$accountId.$id"
+    }
+  },
+
+  // Stage 2: Lookup account details
+  {
+    $lookup: {
+      from: "account",
+      localField: "accountObjectId",
+      foreignField: "_id",
+      as: "accountDetails"
+    }
+  },
+
+  // Stage 3: Unwind accountDetails array
+  {
+    $unwind: "$accountDetails"
+  },
+
+  // Stage 4: Match only paid accounts
+  {
+    $match: {
+      "accountDetails.status": "paid"
+    }
+  },
+
+  // Stage 5: Project selected fields
+  {
+    $project: {
+      firstName: 1,
+      lastName: 1,
+      accountId: 1,
+      accountStatus: "$accountDetails.status",
+      accountName: "$accountDetails.name"
+    }
+  }
+]
+
+-------------------------------------------------------------------------------------
+2) Get count of Customers per Account 
+	[
+  // Stage 1: Add accountObjectId field
+  {
+    $addFields: {
+      accountObjectId: "$accountId.$id"
+    }
+  },
+
+  // Stage 2: Group by accountObjectId and count customers
+  {
+    $group: {
+      _id: "$accountObjectId",
+      customerCount: { $sum: 1 }
+    }
+  }
+]
+
+
